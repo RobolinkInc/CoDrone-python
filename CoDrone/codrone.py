@@ -1307,7 +1307,7 @@ class CoDrone:
         Args:
             direction: member values in the Direction enum class which can be one of the following: FORWARD, BACKWARD, LEFT, RIGHT, UP, and DOWN.
             duration: the duration of the flight motion in seconds.
-                If 0, it will turn right indefinitely. Defaults to infinite if not defined.
+                If 0 or not defined, it will fly in the given direction and power indefinitely.
             power: the power at which the drone flies. Takes a value from 0 to 100. Defaults to 50 if not defined.
 
         Examples:
@@ -1319,8 +1319,11 @@ class CoDrone:
         pitch = ((direction == Direction.FORWARD) - (direction == Direction.BACKWARD)) * power
         roll = ((direction == Direction.RIGHT) - (direction == Direction.LEFT)) * power
         throttle = ((direction == Direction.UP) - (direction == Direction.DOWN)) * power
-
-        self.send_control_duration(roll, pitch, 0, throttle, duration)
+        
+        if duration is None or duration == 0:
+            self.send_control(roll, pitch, 0, throttle)
+        else:
+            self.send_control_duration(roll, pitch, 0, throttle, duration)
 
     def turn(self, direction, duration=0, power=50):
         """A simpler Junior level function that represents yaw, but with more natural language.
@@ -1329,7 +1332,7 @@ class CoDrone:
         Args:
             direction: member values in the Direction enum class which can be one of the following: LEFT, RIGHT
             duration: the duration of the turn in seconds.
-                If 0 or not defined, it will turn right indefinitely.
+                If 0 or not defined, it will turn in the given direction and power indefinitely.
             power: the power at which the drone turns right. Takes a value from 0 to 100. Defaults to 50 if not defined.
 
         Examples:
@@ -1338,7 +1341,7 @@ class CoDrone:
             >>> turn(Direction.RIGHT, 5, 100)   # yaws right for 5 seconds at 100 power
         """
         yaw = ((direction == Direction.RIGHT) - (direction == Direction.LEFT)) * power
-        if duration is None:
+        if duration is None or duration == 0:
             self.send_control(0, 0, yaw, 0)
         else:
             self.send_control_duration(0, 0, yaw, 0, duration)

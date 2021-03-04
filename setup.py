@@ -4,7 +4,7 @@ setup_requires = [
     ]
 
 install_requires = [
-	'pyserial',
+	'pyserial>=3.5',
 	'numpy',
 	'colorama'
 	'matplotlib'

@@ -4,20 +4,21 @@ setup_requires = [
     ]
 
 install_requires = [
-	'pyserial',
+	'pyserial>=3.5',
 	'numpy',
 	'colorama'
+	'matplotlib'
     ]
 
 dependency_links = [
     ]
 desc = """\
-this is Python package for control Codrone
+Python package for controlling CoDrone
 """
 
 setup(
     name='CoDrone',
-    version='1.2.0',
+    version='1.2.6',
     description='Python package for CoDrone',
     url='https://github.com/RobolinkInc/CoDrone-python.git',
     author='Robolink',

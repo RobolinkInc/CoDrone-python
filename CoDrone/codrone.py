@@ -655,36 +655,49 @@ class CoDrone:
 
         Returns: True if port is opened, false otherwise.
         """
+        is_open = False
         if eq(port_name, "None"):
             nodes = comports()
             size = len(nodes)
             if size > 0:
                 port_name = nodes[size - 1].device
             else:
-                return False
+                is_open = False
+        try:
 
-        self._serialPort = serial.Serial(
-            port=port_name,
-            baudrate=115200,
-            parity=serial.PARITY_NONE,
-            stopbits=serial.STOPBITS_ONE,
-            bytesize=serial.EIGHTBITS,
-            timeout=0)
+            self._serialPort = serial.Serial(
+                port=port_name,
+                baudrate=115200,
+                parity=serial.PARITY_NONE,
+                stopbits=serial.STOPBITS_ONE,
+                bytesize=serial.EIGHTBITS,
+                timeout=0)
 
-        if self.isOpen():
-            self._flagThreadRun = True
-            # self._threadSendState = Thread(target=self._send_request_state, args=(self._lock,), daemon=True).start()
-            self._threadSendState = Thread(target=self._grab_sensor_in_background, args=(self._lock,), daemon=True).start()
-            self._threadReceiving = Thread(target=self._receiving, args=(self._lock, self._lockState,),
-                                           daemon=True).start()
+            if self.isOpen():
+                self._flagThreadRun = True
+                # self._threadSendState = Thread(target=self._send_request_state, args=(self._lock,), daemon=True).start()
+                self._threadSendState = Thread(target=self._grab_sensor_in_background, args=(self._lock,),
+                                               daemon=True).start()
+                self._threadReceiving = Thread(target=self._receiving, args=(self._lock, self._lockState,),
+                                               daemon=True).start()
 
-            # print log
-            print(">> Port : [{0}]".format(port_name))
-            return True
-        else:
-            # print error message
-            self._print_error(">> Could not open the serial port.")
-            return False
+                # print log
+                print(">> Found Port : [{0}]".format(port_name))
+                is_open = True
+
+            else:
+                # print error message
+                print(">> Could not open the serial port")
+                self._print_error(">> Could not open the serial port.")
+                is_open = False
+
+        except IOError:
+            print(">> Could not open the serial port")
+            print(">> Please check if CoDrone Bluetooth module is connnected")
+            print(">> and verify you have the USB Driver")
+            exit()
+
+        return is_open
 
     def close(self):
         """Close serial port
@@ -718,12 +731,11 @@ class CoDrone:
 
         Returns: True if connected, false otherwise.
         """
-
+        attempts = 2
         # case for serial port is None(connect to last connection)
         if not self.isOpen():
             self.close()
             self.open(port_name)
-            sleep(0.1)
 
         # if not connect with serial port print error and return
         if not self.isOpen():
@@ -734,13 +746,12 @@ class CoDrone:
         # system reset
         if flag_system_reset:
             self.send_link_system_reset()
-            sleep(3)
 
         # ModeLinkBroadcast.Passive mode change
         self.send_link_mode_broadcast(ModeLinkBroadcast.Passive)
         sleep(0.1)
-
-        for reconnection in range(5):
+        #scan attempts = 2 times
+        for reconnection in range(attempts):
             # start searching device
             self._devices.clear()
             self._flagDiscover = True
@@ -751,8 +762,7 @@ class CoDrone:
                 sleep(0.1)
                 if not self._flagDiscover:
                     break
-
-            sleep(2)
+                sleep(0.01)
 
             length = len(self._devices)
             closest_device = None
@@ -774,16 +784,14 @@ class CoDrone:
                     self.send_link_connect(closest_device.index)
 
                     # wait for 5 seconds to connect the device
-                    for i in range(50):
-                        sleep(0.1)
+                    for i in range(300):
                         if self._flagConnected:
-                            f = open('PairInfo', 'w')
-                            f.write(closest_device.name[8:12])
-                            f.close()
                             break
+                        sleep(0.01)
                     sleep(1.2)
 
                 else:
+                    print("scanning for CoDrone")
                     self._print_error(">> Could not find CoDrone.")
 
             # using CoDrone number
@@ -831,17 +839,26 @@ class CoDrone:
                     self._print_error(">> Could not find CoDrone.")
 
             if self._flagConnected:
+                print(">> Found CoDrone")
                 battery = self.get_battery_percentage()
-                print(">> Drone : [{}]\n>> Battery : [{}]".format(closest_device.name[8:12], battery))
+                print(">> Drone : [{}]"
+                      "\n>> Battery : [{}]".format(closest_device.name[8:12], battery))
 
                 if battery < self._lowBatteryPercent:
                     print(">> Low Battery!!")
-                sleep(3)
+                f = open('PairInfo', 'w')
+                f.write(closest_device.name[8:12])
+                f.close()
                 return self._flagConnected
             else:
                 self._print_error(">> Trying to connect : {}/5".format(reconnection + 1))
-                if reconnection == 4:
+                if reconnection == attempts-1:
+                    print(">> Failed to find CoDrone")
                     self._print_error(">> Fail to connect.")
+                    print(">> please bring CoDrone closer or make sure it is on")
+                    self._flagConnected = False
+                    exit()
+                    return self._flagConnected
         return self._flagConnected
 
     def connect(self, device_name="None", port_name="None", flag_system_reset=False):
